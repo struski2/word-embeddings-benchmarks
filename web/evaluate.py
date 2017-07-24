@@ -4,7 +4,7 @@
 """
 import logging
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering, KMeans
+from sklearn.cluster import AgglomerativeClustering, KMeans, MeanShift, SpectralClustering
 from .datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_MTurk, fetch_RG65, fetch_RW
 from .datasets.categorization import fetch_AP, fetch_battig, fetch_BLESS, fetch_ESSLI_1a, fetch_ESSLI_2b, \
     fetch_ESSLI_2c
@@ -110,7 +110,24 @@ def evaluate_categorization(w, X, y, method="all", seed=None):
                                   fit_predict(words[ids]))
         logger.debug("Purity={:.3f} using KMeans".format(purity))
         best_purity = max(purity, best_purity)
-
+        
+    if method == "all" or method == "mean-shift":
+        # # # If takes too long: Note that the estimate_bandwidth function
+        # # # is much less scalable than the mean shift algorithm 
+        # # # and will be the bottleneck if it is used.
+        purity = calculate_purity(y[ids], MeanShift(bin_seeding = True, n_jobs=5).fit_predict(words[ids]))
+        logger.debug("Purity={:.3f} using MeanShift".format(purity))
+        best_purity = max(purity, best_purity)
+        
+    if method == "all" or method == "spectral":
+        for affinity in ['nearest_neighbors', 'rbf']:
+            purity = calculate_purity(y[ids], SpectralClustering(n_clusters=len(set(y)),
+                                                                 affinity=affinity,
+                                                                 random_state=seed,
+                                                                 n_jobs=5).fit_predict(words[ids]))
+            logger.debug("Purity={:.3f} using SpectralClustering affinity={}".format(purity, affinity))
+            best_purity = max(purity, best_purity)
+     
     return best_purity
 
 
