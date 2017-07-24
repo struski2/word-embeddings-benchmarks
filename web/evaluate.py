@@ -82,7 +82,7 @@ def evaluate_categorization(w, X, y, method="all", seed=None):
     if isinstance(w, dict):
         w = Embedding.from_dict(w)
 
-    assert method in ["all", "kmeans", "agglomerative"], "Uncrecognized method"
+    assert method in ["all", "kmeans", "agglomerative", "mean-shift", "spectral"], "Uncrecognized method"
 
     mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
     words = np.vstack(w.get(word, mean_vector) for word in X.flatten())
