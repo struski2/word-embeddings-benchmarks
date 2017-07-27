@@ -4,7 +4,7 @@
 """
 import logging
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering, KMeans, MeanShift, SpectralClustering
+from sklearn.cluster import AgglomerativeClustering, KMeans, MeanShift, SpectralClustering, AffinityPropagation, Birch
 from .datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_MTurk, fetch_RG65, fetch_RW
 from .datasets.categorization import fetch_AP, fetch_battig, fetch_BLESS, fetch_ESSLI_1a, fetch_ESSLI_2b, \
     fetch_ESSLI_2c
@@ -82,7 +82,7 @@ def evaluate_categorization(w, X, y, method="all", seed=None):
     if isinstance(w, dict):
         w = Embedding.from_dict(w)
 
-    assert method in ["all", "kmeans", "agglomerative", "mean-shift", "spectral"], "Uncrecognized method"
+    assert method in ["all", "kmeans", "agglomerative", "mean-shift", "spectral", "affinityPropagation", "birch"], "Uncrecognized method"
 
     mean_vector = np.mean(w.vectors, axis=0, keepdims=True)
     words = np.vstack(w.get(word, mean_vector) for word in X.flatten())
@@ -127,6 +127,25 @@ def evaluate_categorization(w, X, y, method="all", seed=None):
                                                                  n_jobs=5).fit_predict(words[ids]))
             logger.debug("Purity={:.3f} using SpectralClustering affinity={}".format(purity, affinity))
             best_purity = max(purity, best_purity)
+          
+    if method == "all" or method == "affinityPropagation":
+        # preference : array-like, shape (n_samples,) or float, optional
+        #
+        # Preferences for each point - points with larger values of preferences are more
+        # likely to be chosen as exemplars. The number of exemplars, ie of clusters, is
+        # influenced by the input preferences value. If the preferences are not passed as
+        # arguments, they will be set to the median of the input similarities.
+
+        for affinity in ["cosine", "euclidean"]:
+            purity = calculate_purity(y[ids], AffinityPropagation(preference=None, affinity=affinity).fit_predict(words[ids]))
+            logger.debug("Purity={:.3f} using Affinity Propagation".format(purity))
+            best_purity = max(purity, best_purity)
+
+
+    if method == "all" or method == "birch":
+        purity = calculate_purity(y[ids], Birch(threshold=0.5, branching_factor=50, n_clusters=len(set(y))).fit_predict(words[ids]))
+        logger.debug("Purity={:.3f} using Birch".format(purity))
+        best_purity = max(purity, best_purity)
      
     return best_purity
 
